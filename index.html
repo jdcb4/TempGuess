@@ -1,365 +1,72 @@
-<script src="./words.js"></script>
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <title>Pass & Play Word Guess</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>30-Second Word Dash</title>
+  <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    :root { font-family: system-ui, sans-serif; }
-    body { margin: 24px; }
-    .row { display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
-    .card { border:1px solid #ddd; border-radius:12px; padding:16px; max-width:720px; }
-    .muted { color:#666; }
-    button { padding:10px 14px; border-radius:10px; border:1px solid #ccc; cursor:pointer; }
-    button:disabled { opacity:.5; cursor:not-allowed; }
-    .big { font-size:2rem; font-weight:700; margin:16px 0; }
-    .pill { display:inline-block; padding:4px 10px; border-radius:999px; background:#f4f4f4; }
-    .grid { display:grid; grid-template-columns: 1fr 1fr; gap:16px; }
-    .score { font-size:1.25rem; font-weight:700; }
-    .sep { height:1px; background:#eee; margin:12px 0; }
-    .hidden { display:none; }
+    body{font-family:Inter,system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#0d1117;color:#e6edf3}
+    #game-container{max-width:420px;margin:auto;min-height:100vh;display:flex;flex-direction:column;padding:1rem}
+    .card{background:#161b22;border:1px solid #30363d;border-radius:.5rem;box-shadow:0 4px 6px rgba(0,0,0,.2)}
+    .action-button{padding:1rem;border-radius:.5rem;font-weight:700;transition:transform .1s;touch-action:manipulation}
+    .action-button:active{transform:scale(.98)}
+    .btn-correct{background:#2ea043;color:#fff}
+    .btn-skip{background:#30363d;color:#c9d1d9}
+    .btn-hint{background:#a800ff;color:#fff}
+    .btn-primary{background:#1f6feb;color:#fff}
+    #timer-bar-container{height:8px;background:#30363d;border-radius:4px;overflow:hidden;margin-bottom:1rem}
+    #timer-bar{height:100%;width:100%;background:#2ea043;transition:width .2s linear,background-color .3s}
   </style>
 </head>
 <body>
-  <h1>Pass & Play Word Guess</h1>
+<div id="game-container">
+  <h1 class="text-3xl font-extrabold text-center mb-6 text-green-400">Word Dash: Who, What, Where?</h1>
 
-  <div id="setup" class="card">
-    <div class="row">
-      <label>Team 1:
-        <input id="t1" placeholder="Team 1" value="Team 1" />
-      </label>
-      <label>Team 2:
-        <input id="t2" placeholder="Team 2" value="Team 2" />
-      </label>
-      <label>Turn length:
-        <input id="turnLen" type="number" min="10" max="120" value="30" /> s
-      </label>
-      <label>Turns per team:
-        <input id="turnsPerTeam" type="number" min="1" max="10" value="3" />
-      </label>
-      <button id="startBtn">Start Game</button>
+  <!-- Scoreboard -->
+  <div class="card p-3 mb-4 flex justify-between text-sm">
+    <div class="font-bold text-center">
+      <span id="team-a-name" class="text-blue-400">Team Alpha</span>:
+      <span id="score-a" class="text-xl">0</span>
     </div>
-    <p class="muted">Rules: 1 point correct. First skip free. Each later skip −1 in that turn. Two hints per turn.</p>
-  </div>
-
-  <div id="game" class="card hidden">
-    <div class="grid">
-      <div>
-        <div class="row">
-          <div id="teamNow" class="pill"></div>
-          <div id="turnInfo" class="pill"></div>
-          <div id="timer" class="pill"></div>
-          <div id="category" class="pill"></div>
-          <div id="hintsLeft" class="pill"></div>
-          <div id="skipsUsed" class="pill"></div>
-        </div>
-        <div id="word" class="big">—</div>
-        <div id="hint" class="muted"></div>
-        <div class="row">
-          <button id="correctBtn">Correct (+1)</button>
-          <button id="skipBtn">Skip</button>
-          <button id="hintBtn">Hint</button>
-          <button id="endTurnBtn" class="muted">End Turn</button>
-        </div>
-      </div>
-      <div>
-        <div class="scoreboard">
-          <div class="row"><span id="name1" class="score"></span><span id="score1" class="score"></span></div>
-          <div class="row"><span id="name2" class="score"></span><span id="score2" class="score"></span></div>
-        </div>
-        <div class="sep"></div>
-        <div class="muted">Used words this game:</div>
-        <ul id="usedList" style="max-height:200px; overflow:auto; margin-top:6px;"></ul>
-      </div>
+    <div class="text-center">
+      <div id="current-round" class="font-semibold text-xs text-yellow-400">Round 1 / 3</div>
+      <div id="current-team-indicator" class="font-bold text-lg text-blue-400">Team Alpha's Turn</div>
+    </div>
+    <div class="font-bold text-center">
+      <span id="team-b-name" class="text-red-400">Team Beta</span>:
+      <span id="score-b" class="text-xl">0</span>
     </div>
   </div>
 
-  <div id="gameOver" class="card hidden"></div>
+  <!-- Setup -->
+  <div id="setup-screen" class="flex flex-col gap-4">
+    <div class="card p-6">
+      <h2 class="text-xl font-semibold mb-3">Game Setup</h2>
+      <p class="text-sm text-gray-400 mb-4">Two teams. 3 turns each. 30s per turn. First skip free. Later skips −1. Two hints per turn.</p>
+      <div class="space-y-3">
+        <label class="block text-sm font-medium text-blue-400">Team 1 Name (Blue)</label>
+        <input id="input-team-a" value="Team Alpha" class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md focus:ring-blue-500 focus:border-blue-500 text-white"/>
+        <label class="block text-sm font-medium text-red-400">Team 2 Name (Red)</label>
+        <input id="input-team-b" value="Team Beta" class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md focus:ring-red-500 focus:border-red-500 text-white"/>
+      </div>
+      <button id="start-game-btn" class="btn-primary w-full mt-6 py-3 rounded-lg">Start Game</button>
+    </div>
+  </div>
 
-  <!-- Load your words. File must define window.wordsByCategory -->
-  <script src="words.js"></script>
-  <script>
-    // --- Data integration ---
-    // Expect global wordsByCategory = { CategoryName: [ {word, hint}, ... ], ... }
-    if (!window.wordsByCategory) {
-      alert("wordsByCategory not found. Ensure words.js is in the same folder.");
-    }
+  <!-- Transition -->
+  <div id="transition-screen" class="hidden flex-1 flex flex-col justify-center items-center card p-6 text-center">
+    <h2 id="transition-header" class="text-2xl font-bold mb-4"></h2>
+    <p id="transition-details" class="text-lg mb-6"></p>
+    <button id="start-turn-btn" class="btn-primary px-8 py-3 text-lg">Start 30s Turn</button>
+  </div>
 
-    // Normalize: ensure each entry is {word, hint}
-    const catalog = {};
-    Object.entries(window.wordsByCategory || {}).forEach(([cat, arr]) => {
-      catalog[cat] = (arr || []).map(e => {
-        if (typeof e === 'string') return { word: e, hint: '' };
-        return { word: e.word || String(e), hint: e.hint || '' };
-      }).filter(e => e.word && e.word.trim());
-    });
-    const categories = Object.keys(catalog).filter(k => catalog[k].length);
+  <!-- Gameplay -->
+  <div id="game-play-screen" class="hidden flex-1 flex flex-col">
+    <div id="timer-bar-container"><div id="timer-bar"></div></div>
+    <div id="timer-display" class="text-3xl font-extrabold text-center mb-4 text-yellow-300">30</div>
 
-    // --- Helpers ---
-    const $ = sel => document.querySelector(sel);
-    const shuffle = a => { for (let i=a.length-1; i>0; i--) { const j = Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; };
-
-    // Track per-category indices shuffled once per game
-    let orderByCat = {};
-    function resetOrder() {
-      orderByCat = {};
-      for (const cat of categories) {
-        orderByCat[cat] = shuffle([...Array(catalog[cat].length).keys()]);
-      }
-    }
-
-    // --- Game state ---
-    const state = {
-      teams: [{ name: "Team 1", score: 0 }, { name: "Team 2", score: 0 }],
-      activeTeam: 0,                // 0 or 1
-      turnLenSec: 30,
-      turnsPerTeam: 3,
-      turnCounters: [0, 0],         // completed turns per team
-      timerId: null,
-      timeLeft: 0,
-      currentCategory: null,
-      currentIdxMap: {},            // per-cat cursor into order array
-      currentWord: null,
-      usedWords: [],                // [{cat, word, result}]
-      skipsThisTurn: 0,
-      hintsLeft: 2,
-      gameOver: false,
-    };
-
-    // --- UI elements ---
-    const els = {
-      setup: $("#setup"),
-      game: $("#game"),
-      over: $("#gameOver"),
-      startBtn: $("#startBtn"),
-      teamNow: $("#teamNow"),
-      turnInfo: $("#turnInfo"),
-      timer: $("#timer"),
-      category: $("#category"),
-      hintsLeft: $("#hintsLeft"),
-      skipsUsed: $("#skipsUsed"),
-      word: $("#word"),
-      hint: $("#hint"),
-      correctBtn: $("#correctBtn"),
-      skipBtn: $("#skipBtn"),
-      hintBtn: $("#hintBtn"),
-      endTurnBtn: $("#endTurnBtn"),
-      name1: $("#name1"),
-      name2: $("#name2"),
-      score1: $("#score1"),
-      score2: $("#score2"),
-      usedList: $("#usedList"),
-      gameCard: $("#game"),
-      gameOverCard: $("#gameOver"),
-      t1: $("#t1"),
-      t2: $("#t2"),
-      turnLen: $("#turnLen"),
-      turnsPerTeam: $("#turnsPerTeam"),
-    };
-
-    // --- Rendering ---
-    function renderHud() {
-      els.teamNow.textContent = `${state.teams[state.activeTeam].name}`;
-      els.turnInfo.textContent = `Turn ${state.turnCounters[state.activeTeam] + 1} / ${state.turnsPerTeam}`;
-      els.timer.textContent = `⏱ ${state.timeLeft}s`;
-      els.category.textContent = state.currentCategory ? `Category: ${state.currentCategory}` : `—`;
-      els.hintsLeft.textContent = `Hints: ${state.hintsLeft}`;
-      els.skipsUsed.textContent = `Skips: ${state.skipsThisTurn}`;
-      els.name1.textContent = state.teams[0].name + ":";
-      els.name2.textContent = state.teams[1].name + ":";
-      els.score1.textContent = " " + state.teams[0].score;
-      els.score2.textContent = " " + state.teams[1].score;
-    }
-
-    function renderWord(showHint = false) {
-      if (!state.currentWord) {
-        els.word.textContent = "Out of words in this category.";
-        els.hint.textContent = "";
-        els.correctBtn.disabled = true;
-        els.skipBtn.disabled = true;
-        els.hintBtn.disabled = true;
-        return;
-      }
-      els.word.textContent = state.currentWord.word;
-      els.hint.textContent = showHint ? ("Hint: " + (state.currentWord.hint || "—")) : "";
-      els.hintBtn.disabled = state.hintsLeft <= 0 || !state.currentWord.hint;
-    }
-
-    function pushUsed(result) {
-      const li = document.createElement("li");
-      li.textContent = `[${state.currentCategory}] ${state.currentWord.word} — ${result}`;
-      els.usedList.prepend(li);
-      state.usedWords.push({ cat: state.currentCategory, word: state.currentWord.word, result });
-    }
-
-    // --- Word selection ---
-    function pickCategoryAtTurnStart() {
-      // Random category each turn
-      state.currentCategory = categories[Math.floor(Math.random() * categories.length)];
-      // Ensure cursor exists
-      if (!(state.currentCategory in state.currentIdxMap)) state.currentIdxMap[state.currentCategory] = 0;
-    }
-
-    function nextWord() {
-      const cat = state.currentCategory;
-      const order = orderByCat[cat];
-      let cursor = state.currentIdxMap[cat] ?? 0;
-
-      // Advance until an unused entry found, else null
-      if (cursor >= order.length) {
-        state.currentWord = null;
-        return;
-      }
-      const idx = order[cursor];
-      state.currentIdxMap[cat] = cursor + 1;
-      state.currentWord = catalog[cat][idx] || null;
-    }
-
-    // --- Turn flow ---
-    function startTurn() {
-      state.skipsThisTurn = 0;
-      state.hintsLeft = 2;
-      state.timeLeft = state.turnLenSec;
-      pickCategoryAtTurnStart();
-      nextWord();
-      renderHud();
-      renderWord(false);
-      enablePlayControls(true);
-      els.hint.textContent = "";
-
-      clearInterval(state.timerId);
-      state.timerId = setInterval(() => {
-        state.timeLeft -= 1;
-        els.timer.textContent = `⏱ ${state.timeLeft}s`;
-        if (state.timeLeft <= 0) endTurn();
-      }, 1000);
-    }
-
-    function endTurn() {
-      clearInterval(state.timerId);
-      enablePlayControls(false);
-      // Increment turn counter for the active team
-      state.turnCounters[state.activeTeam] += 1;
-
-      // Decide next step
-      if (state.turnCounters[0] >= state.turnsPerTeam && state.turnCounters[1] >= state.turnsPerTeam) {
-        finishGame();
-        return;
-      }
-      // Switch team
-      state.activeTeam = state.activeTeam ^ 1;
-      renderHud();
-      els.word.textContent = "Pass device to next team. Press Start Turn.";
-      els.hint.textContent = "";
-      els.endTurnBtn.textContent = "Start Turn";
-      els.endTurnBtn.disabled = false;
-      els.endTurnBtn.onclick = () => {
-        els.endTurnBtn.textContent = "End Turn";
-        els.endTurnBtn.onclick = endTurn;
-        startTurn();
-      };
-    }
-
-    function finishGame() {
-      state.gameOver = true;
-      els.game.classList.add("hidden");
-      els.gameOverCard.classList.remove("hidden");
-      const [s1, s2] = [state.teams[0].score, state.teams[1].score];
-      const verdict = s1 === s2 ? "Draw" : (s1 > s2 ? `${state.teams[0].name} win` : `${state.teams[1].name} win`);
-      els.gameOverCard.innerHTML = `
-        <h2>Game Over</h2>
-        <p><strong>${state.teams[0].name}:</strong> ${s1}</p>
-        <p><strong>${state.teams[1].name}:</strong> ${s2}</p>
-        <h3>${verdict}</h3>
-        <button id="restartBtn">Play Again</button>
-      `;
-      document.getElementById("restartBtn").onclick = () => {
-        startGame(true);
-      };
-    }
-
-    function enablePlayControls(enable) {
-      els.correctBtn.disabled = !enable;
-      els.skipBtn.disabled = !enable;
-      els.hintBtn.disabled = !enable;
-      els.endTurnBtn.disabled = false; // always allow manual end
-    }
-
-    // --- Button handlers ---
-    els.correctBtn.onclick = () => {
-      // +1
-      state.teams[state.activeTeam].score += 1;
-      pushUsed("+1");
-      nextWord();
-      renderHud();
-      renderWord(false);
-    };
-
-    els.skipBtn.onclick = () => {
-      // First skip free. Subsequent skips −1.
-      state.skipsThisTurn += 1;
-      if (state.skipsThisTurn > 1) {
-        state.teams[state.activeTeam].score -= 1;
-        pushUsed("Skip −1");
-      } else {
-        pushUsed("Skip 0");
-      }
-      renderHud();
-      nextWord();
-      renderWord(false);
-    };
-
-    els.hintBtn.onclick = () => {
-      if (state.hintsLeft <= 0) return;
-      state.hintsLeft -= 1;
-      renderHud();
-      renderWord(true);
-    };
-
-    els.endTurnBtn.onclick = endTurn;
-
-    // --- Game lifecycle ---
-    function startGame(isRestart = false) {
-      // Read setup
-      state.teams[0].name = els.t1.value.trim() || "Team 1";
-      state.teams[1].name = els.t2.value.trim() || "Team 2";
-      state.turnLenSec = Math.max(10, Math.min(120, parseInt(els.turnLen.value || "30", 10)));
-      state.turnsPerTeam = Math.max(1, Math.min(10, parseInt(els.turnsPerTeam.value || "3", 10)));
-
-      // Reset
-      state.teams[0].score = 0;
-      state.teams[1].score = 0;
-      state.activeTeam = 0;
-      state.turnCounters = [0, 0];
-      state.usedWords = [];
-      state.currentIdxMap = {};
-      resetOrder();
-      clearInterval(state.timerId);
-      els.usedList.innerHTML = "";
-
-      // Show game
-      els.setup.classList.add("hidden");
-      els.over.classList.add("hidden");
-      els.game.classList.remove("hidden");
-      els.gameOverCard.classList.add("hidden");
-
-      // Prepare manual "Start Turn" button
-      els.word.textContent = "Pass device to " + state.teams[state.activeTeam].name + ". Press Start Turn.";
-      els.hint.textContent = "";
-      els.endTurnBtn.textContent = "Start Turn";
-      els.endTurnBtn.disabled = false;
-      els.endTurnBtn.onclick = () => {
-        els.endTurnBtn.textContent = "End Turn";
-        els.endTurnBtn.onclick = endTurn;
-        startTurn();
-      };
-      renderHud();
-      renderWord(false);
-    }
-
-    // Wire start button
-    els.startBtn.onclick = () => startGame(false);
-  </script>
-</body>
-</html>
+    <div class="card flex-1 p-6 flex flex-col justify-center items-center text-center mb-4">
+      <div id="current-category" class="text-sm font-semibold mb-2 p-1.5 rounded-full bg-indigo-500 text-white uppercase tracking-wider">CATEGORY</div>
+      <div id="current-word" class="text-5xl font-black min-h-[60px] text-white">...</div>
+      <div id="word-message" class="text-sm text-gray-400
