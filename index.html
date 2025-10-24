@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -26,7 +27,7 @@
     </script>
     <!-- Load Inter font -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
-    <!-- Load words.js data file -->
+    <!-- Load words.js data file. This must be present in the same directory. -->
     <script src="words.js"></script>
 
     <style>
@@ -77,7 +78,8 @@
         <div id="startScreen" class="screen-container text-center">
             <h1 class="text-3xl font-extrabold text-gray-800 mb-2">Clue Master</h1>
             <p class="text-gray-600 mb-8">Pass & Play: 3 rounds per team, 30 seconds per turn.</p>
-            <button onclick="startGame()" class="w-full game-button bg-primary hover:bg-indigo-600 text-white font-bold py-3 px-4 rounded-xl">
+            <!-- FIX: Added ID and removed onclick for listener attachment in module script -->
+            <button id="startButton" class="w-full game-button bg-primary hover:bg-indigo-600 text-white font-bold py-3 px-4 rounded-xl">
                 Start Game
             </button>
         </div>
@@ -101,12 +103,12 @@
 
             <div id="hintBox" class="bg-gray-100 p-3 rounded-lg text-gray-600 text-sm italic mb-6 hidden">
                 <p id="hintText"></p>
-                <p class="text-xs mt-1 text-gray-500">(-2 hints used)</p>
+                <p class="text-xs mt-1 text-gray-500">Hint used! (<span id="hintsRemaining">2</span> remaining)</p>
             </div>
 
             <div class="flex space-x-3 mb-6">
                 <button id="hintButton" onclick="showHint()" class="flex-1 game-button bg-accent hover:bg-amber-600 text-white font-bold py-3 px-2 rounded-xl text-sm md:text-base">
-                    Hint (<span id="hintsRemaining">2</span>)
+                    Hint (<span id="hintsRemainingDisplay">2</span>)
                 </button>
             </div>
 
@@ -145,6 +147,12 @@
             </button>
         </div>
 
+    </div>
+
+    <!-- Error/Alert Box (Replaces alert()) -->
+    <div id="errorBox" class="w-full max-w-lg mt-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded-xl shadow-lg hidden">
+        <p class="font-bold">Error Loading Game Data:</p>
+        <p id="errorMessage"></p>
     </div>
 
     <!-- JavaScript Game Logic -->
@@ -238,11 +246,16 @@
          * Randomly selects an unused category, then shuffles its words.
          */
         function prepareCategoryAndWords() {
-            if (!wordsByCategory || Object.keys(wordsByCategory).length === 0) {
+            // FIX: Check for wordsByCategory and display error message instead of alert
+            if (typeof wordsByCategory === 'undefined' || Object.keys(wordsByCategory).length === 0) {
                 console.error("words.js not loaded or is empty.");
-                alert("Error: Word data is missing. Check your words.js file.");
+                document.getElementById('errorBox').classList.remove('hidden');
+                document.getElementById('errorMessage').textContent = "Word data (words.js) is missing or empty. Please ensure the file is in the same directory and correctly structured.";
+                showScreen('startScreen');
                 return false;
             }
+            document.getElementById('errorBox').classList.add('hidden');
+
 
             const categories = Object.keys(wordsByCategory);
             
@@ -283,7 +296,7 @@
             document.getElementById('currentWordDisplay').textContent = gameState.currentWord.word;
             document.getElementById('hintText').textContent = gameState.currentWord.hint;
             document.getElementById('hintBox').classList.add('hidden');
-            document.getElementById('hintsRemaining').textContent = 2 - gameState.hintsUsedInTurn;
+            document.getElementById('hintsRemainingDisplay').textContent = 2 - gameState.hintsUsedInTurn;
             document.getElementById('hintButton').disabled = (gameState.hintsUsedInTurn >= 2);
             document.getElementById('hintButton').classList.toggle('opacity-50', gameState.hintsUsedInTurn >= 2);
             document.getElementById('hintBox').querySelector('p:last-child').textContent = `Hint used! (${2 - gameState.hintsUsedInTurn} remaining)`;
@@ -305,7 +318,8 @@
                 document.getElementById('skipScoreChange').classList.add('text-red-500');
             } else {
                 document.getElementById('skipScoreChange').classList.remove('text-red-500');
-                document.getElementById('skipScoreChange').classList.add('text-primary');
+                // Ensure correct color for the skip button text which is nested in the red skip button
+                document.getElementById('skipScoreChange').classList.add('text-white'); 
             }
         }
 
@@ -354,7 +368,7 @@
             // Prepare content for the Turn Start Screen
             document.getElementById('turnStartTitle').textContent = `${teamName}'s Turn ${4 - teamTurnsLeft} of 3`;
             document.getElementById('turnStartTitle').className = `text-3xl font-extrabold mb-2 ${teamColor}`;
-            document.getElementById('turnStartScreen').classList.remove('bg-primary', 'bg-secondary', 'bg-opacity-10');
+            document.getElementById('turnStartScreen').classList.remove('bg-primary/10', 'bg-secondary/10');
             document.getElementById('turnStartScreen').classList.add(gameState.currentTeam === 1 ? 'bg-primary/10' : 'bg-secondary/10');
             
             // Pick a category for the turn
@@ -428,7 +442,7 @@
             
             gameState.hintsUsedInTurn++;
             document.getElementById('hintBox').classList.remove('hidden');
-            document.getElementById('hintsRemaining').textContent = 2 - gameState.hintsUsedInTurn;
+            document.getElementById('hintsRemainingDisplay').textContent = 2 - gameState.hintsUsedInTurn;
             
             if (gameState.hintsUsedInTurn >= 2) {
                 document.getElementById('hintButton').disabled = true;
@@ -440,4 +454,90 @@
          * Ends the current turn, calculates score, and moves to the end screen.
          */
         function endTurn() {
+            if (!gameState.isTurnActive) return;
+
+            clearInterval(gameState.timerInterval);
+            gameState.isTurnActive = false;
+
+            // Apply turn points to the current team's total score
+            if (gameState.currentTeam === 1) {
+                gameState.team1Score += gameState.currentTurnPoints;
+                gameState.team1TurnsLeft--;
+            } else {
+                gameState.team2Score += gameState.currentTurnPoints;
+                gameState.team2TurnsLeft--;
+            }
             
+            updateScoreDisplay();
+
+            // Prepare the Turn End Screen
+            const teamName = `Team ${gameState.currentTeam}`;
+            const nextTeamName = `Team ${gameState.currentTeam === 1 ? 2 : 1}`;
+            
+            document.getElementById('turnSummary').textContent = `${teamName} scored ${gameState.currentTurnPoints} point${gameState.currentTurnPoints !== 1 ? 's' : ''} this turn!`;
+            
+            if (checkGameOver()) {
+                document.getElementById('nextTurnInfo').textContent = "That was the last turn! Let's see the final scores.";
+            } else {
+                document.getElementById('nextTurnInfo').textContent = `${nextTeamName}, get ready for your turn.`;
+            }
+
+            // Update current team to the next team
+            gameState.currentTeam = gameState.currentTeam === 1 ? 2 : 1;
+            
+            showScreen('turnEndScreen');
+        }
+
+        /**
+         * Moves to the next team's turn setup.
+         */
+        window.nextTurn = function() {
+            prepareNextTurn();
+        }
+
+        /**
+         * Checks if the game is completely over.
+         */
+        function checkGameOver() {
+            return gameState.team1TurnsLeft <= 0 && gameState.team2TurnsLeft <= 0;
+        }
+
+        /**
+         * Shows the final game over screen with the winner.
+         */
+        function showGameOver() {
+            const score1 = gameState.team1Score;
+            const score2 = gameState.team2Score;
+            
+            document.getElementById('finalScore1').textContent = score1;
+            document.getElementById('finalScore2').textContent = score2;
+
+            let winnerMsg;
+            if (score1 > score2) {
+                winnerMsg = "Team 1 Wins!";
+            } else if (score2 > score1) {
+                winnerMsg = "Team 2 Wins!";
+            } else {
+                winnerMsg = "It's a Tie!";
+            }
+            
+            document.getElementById('winnerMessage').textContent = winnerMsg;
+            showScreen('gameOverScreen');
+        }
+
+        // --- Initialization ---
+        window.onload = function() {
+            // Initial score and timer display
+            updateScoreDisplay();
+            document.getElementById('timerDisplay').textContent = gameState.timer;
+
+            // FIX: Use addEventListener for the start button to ensure module-scope visibility
+            const startButton = document.getElementById('startButton');
+            if (startButton) {
+                startButton.addEventListener('click', startGame);
+            }
+        }
+    </script>
+</body>
+</html>
+
