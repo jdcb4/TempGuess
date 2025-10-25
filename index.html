@@ -1,3 +1,4 @@
+ 
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -419,4 +420,185 @@
             document.getElementById('timerDisplay').textContent = gameState.timer;
             document.getElementById('timerDisplay').classList.remove('text-red-700'); 
 
-            // Prepare content for the Turn 
+            // Prepare content for the Turn Start Screen
+            const teamColorClass = `text-${currentTeam.colorClass}`;
+            const teamBgClass = `bg-${currentTeam.colorClass}/10`;
+            const turnNumber = 4 - currentTeam.turnsLeft;
+
+            document.getElementById('turnStartTitle').textContent = `${currentTeam.name}'s Turn ${turnNumber} of 3`;
+            document.getElementById('turnStartTitle').className = `text-3xl font-extrabold mb-2 ${teamColorClass}`;
+
+            // Robustly apply background class for the turn start screen
+            document.getElementById('turnStartScreen').classList.remove('bg-team1/10', 'bg-team2/10', 'bg-team3/10', 'bg-team4/10');
+            document.getElementById('turnStartScreen').classList.add(teamBgClass);
+            
+            // Pick a category for the turn
+            if (prepareCategoryAndWords()) {
+                document.getElementById('turnStartCategory').textContent = `Category: ${gameState.currentCategory}`;
+                showScreen('turnStartScreen');
+            }
+            updateScoreDisplay(); 
+        }
+
+        /** Starts the 30-second timer and moves to the game screen. */
+        window.startTimer = function() {
+            gameState.isTurnActive = true;
+            showScreen('gameScreen');
+            
+            const currentTeam = gameState.teams[gameState.currentTeamIndex];
+            const correctButton = document.getElementById("correctButton");
+            
+            // Set correct button color dynamically
+            correctButton.classList.remove('bg-team1', 'bg-team2', 'bg-team3', 'bg-team4', 'hover:bg-indigo-600', 'hover:bg-emerald-600', 'hover:bg-amber-600', 'hover:bg-red-600');
+            correctButton.classList.add(`bg-${currentTeam.colorClass}`);
+
+            displayNextWord();
+
+            gameState.timerInterval = setInterval(() => {
+                gameState.timer--;
+                document.getElementById('timerDisplay').textContent = gameState.timer;
+                
+                if (gameState.timer <= 10) {
+                     document.getElementById('timerDisplay').classList.remove('text-red-500');
+                     document.getElementById('timerDisplay').classList.add('text-red-700');
+                }
+
+                if (gameState.timer <= 0) {
+                    endTurn();
+                }
+            }, 1000);
+        }
+
+        /** Handles Correct or Skip actions. */
+        window.handleAction = function(action) {
+            if (!gameState.isTurnActive || gameState.timer <= 0) return;
+
+            if (action === 'correct') {
+                gameState.currentTurnPoints += 1;
+            } else if (action === 'skip') {
+                if (gameState.skippedWordsInTurn > 0) {
+                    // Subsequent skips: -1 point change
+                    gameState.currentTurnPoints -= 1;
+                }
+                gameState.skippedWordsInTurn++;
+                updateSkipUI();
+            }
+
+            displayNextWord();
+        }
+
+        /** Shows the hint for the current word. */
+        window.showHint = function() {
+            if (!gameState.isTurnActive || gameState.hintsUsedInTurn >= 2) return;
+            
+            gameState.hintsUsedInTurn++;
+            document.getElementById('hintBox').classList.remove('hidden');
+            document.getElementById('hintsRemainingDisplay').textContent = 2 - gameState.hintsUsedInTurn;
+            
+            if (gameState.hintsUsedInTurn >= 2) {
+                document.getElementById('hintButton').disabled = true;
+                document.getElementById('hintButton').classList.add('opacity-50');
+            }
+        }
+
+        /** Ends the current turn, calculates score, and moves to the end screen. */
+        function endTurn() {
+            if (!gameState.isTurnActive) return;
+
+            clearInterval(gameState.timerInterval);
+            gameState.isTurnActive = false;
+            
+            let currentTeam = gameState.teams[gameState.currentTeamIndex];
+
+            // Apply turn points to the current team's total score
+            currentTeam.score += gameState.currentTurnPoints;
+            currentTeam.turnsLeft--;
+            
+            updateScoreDisplay();
+
+            // Prepare the Turn End Screen
+            document.getElementById('turnSummary').textContent = `${currentTeam.name} scored ${gameState.currentTurnPoints} point${gameState.currentTurnPoints !== 1 ? 's' : ''} this turn!`;
+            
+            if (checkGameOver()) {
+                document.getElementById('nextTurnInfo').textContent = "That was the last turn! Let's see the final scores.";
+            } else {
+                let foundNextTeam = false;
+                let nextTeamName = "Next Team";
+                for (let i = 0; i < gameState.teams.length; i++) {
+                    const index = (gameState.currentTeamIndex + 1 + i) % gameState.teams.length;
+                    if (gameState.teams[index].turnsLeft > 0) {
+                        nextTeamName = gameState.teams[index].name;
+                        foundNextTeam = true;
+                        break;
+                    }
+                }
+                
+                if (foundNextTeam) {
+                    document.getElementById('nextTurnInfo').textContent = `${nextTeamName}, get ready for your turn.`;
+                } else {
+                    document.getElementById('nextTurnInfo').textContent = "All turns are complete. Proceed to results.";
+                }
+            }
+            
+            // Advance to the next team index for the next turn setup
+            gameState.currentTeamIndex = (gameState.currentTeamIndex + 1) % gameState.teams.length;
+            
+            showScreen('turnEndScreen');
+        }
+
+        /** Moves to the next team's turn setup. */
+        window.nextTurn = function() {
+            prepareNextTurn();
+        }
+
+        /** Checks if the game is completely over (all teams have 0 turns left). */
+        function checkGameOver() {
+            return gameState.teams.length > 0 && gameState.teams.every(team => team.turnsLeft <= 0);
+        }
+
+        /** Shows the final game over screen with the winner. */
+        function showGameOver() {
+            let maxScore = -Infinity;
+            let winners = [];
+
+            // Determine winner(s)
+            gameState.teams.forEach(team => {
+                if (team.score > maxScore) {
+                    maxScore = team.score;
+                    winners = [team];
+                } else if (team.score === maxScore) {
+                    winners.push(team);
+                }
+            });
+            
+            // Prepare winner message
+            let winnerMsg;
+            if (winners.length === 1) {
+                winnerMsg = `${winners[0].name} Wins with ${maxScore} Points!`;
+            } else {
+                const names = winners.map(w => w.name).join(' and ');
+                winnerMsg = `It's a Tie! Winners: ${names}`;
+            }
+            
+            document.getElementById('winnerMessage').textContent = winnerMsg;
+            
+            // Populate final scoreboard
+            const finalScoreboard = document.getElementById('finalScoreboard');
+            finalScoreboard.innerHTML = '';
+            gameState.teams.forEach(team => {
+                const isWinner = team.score === maxScore && maxScore > 0;
+                const scoreElement = document.createElement('p');
+                scoreElement.className = `text-lg font-medium p-2 rounded-lg ${isWinner ? `text-white bg-${team.colorClass} font-bold shadow-md` : 'text-gray-700'}`;
+                scoreElement.innerHTML = `${team.name}: <span class="font-bold">${team.score}</span>`;
+                finalScoreboard.appendChild(scoreElement);
+            });
+
+            showScreen('gameOverScreen');
+        }
+
+        // --- Initialization ---
+        window.onload = initGame;
+    </script>
+</body>
+</html>
+
