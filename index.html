@@ -51,7 +51,6 @@
         .timer-text {
             font-variant-numeric: tabular-nums;
         }
-        /* No longer need dynamic border classes here */
     </style>
 </head>
 <body class="font-sans min-h-screen flex flex-col items-center justify-center p-4 bg-gray-100">
@@ -79,7 +78,8 @@
             
             <div class="mb-6 text-left">
                 <label for="teamCount" class="block text-sm font-medium text-gray-700 mb-2">Number of Teams:</label>
-                <select id="teamCount" onchange="generateTeamNameInputs()" class="w-full p-3 border border-gray-300 rounded-xl focus:ring-accent focus:border-accent">
+                <!-- FIX: Removed onchange -->
+                <select id="teamCount" class="w-full p-3 border border-gray-300 rounded-xl focus:ring-accent focus:border-accent">
                     <option value="2">2 Teams</option>
                     <option value="3">3 Teams</option>
                     <option value="4">4 Teams</option>
@@ -100,7 +100,8 @@
             <h2 id="turnStartTitle" class="text-3xl font-extrabold text-gray-800 mb-2"></h2>
             <p id="turnStartCategory" class="text-lg font-semibold text-gray-800 mb-6"></p>
             <p class="text-gray-600 mb-8">Pass the device to the guesser. Get ready for 30 seconds!</p>
-            <button onclick="startTimer()" class="w-full game-button bg-team2 hover:bg-emerald-600 text-white font-bold py-3 px-4 rounded-xl">
+            <!-- FIX: Removed onclick -->
+            <button id="turnStartButton" class="w-full game-button bg-team2 hover:bg-emerald-600 text-white font-bold py-3 px-4 rounded-xl">
                 Start Turn
             </button>
         </div>
@@ -118,16 +119,19 @@
             </div>
 
             <div class="flex space-x-3 mb-6">
-                <button id="hintButton" onclick="showHint()" class="flex-1 game-button bg-team3 hover:bg-amber-600 text-white font-bold py-3 px-2 rounded-xl text-sm md:text-base">
+                <!-- FIX: Removed onclick -->
+                <button id="hintButton" class="flex-1 game-button bg-team3 hover:bg-amber-600 text-white font-bold py-3 px-2 rounded-xl text-sm md:text-base">
                     Hint (<span id="hintsRemainingDisplay">2</span>)
                 </button>
             </div>
 
             <div class="flex space-x-3">
-                <button onclick="handleAction('skip')" class="flex-1 game-button bg-team4 hover:bg-red-600 text-white font-bold py-4 px-2 rounded-xl text-lg">
+                <!-- FIX: Removed onclick, added id -->
+                <button id="skipButton" class="flex-1 game-button bg-team4 hover:bg-red-600 text-white font-bold py-4 px-2 rounded-xl text-lg">
                     Skip (<span id="skipScoreChange">0</span>)
                 </button>
-                <button id="correctButton" onclick="handleAction('correct')" class="flex-1 game-button bg-team1 hover:bg-indigo-600 text-white font-bold py-4 px-2 rounded-xl text-lg">
+                <!-- FIX: Removed onclick -->
+                <button id="correctButton" class="flex-1 game-button bg-team1 hover:bg-indigo-600 text-white font-bold py-4 px-2 rounded-xl text-lg">
                     Correct (+1)
                 </button>
             </div>
@@ -140,7 +144,8 @@
             <p id="turnSummary" class="text-lg text-gray-600 mb-6"></p>
             <p id="nextTurnInfo" class="text-sm font-semibold text-gray-500 mb-8"></p>
 
-            <button onclick="nextTurn()" class="w-full game-button bg-accent hover:bg-indigo-600 text-white font-bold py-3 px-4 rounded-xl">
+            <!-- FIX: Removed onclick -->
+            <button id="nextTurnButton" class="w-full game-button bg-accent hover:bg-indigo-600 text-white font-bold py-3 px-4 rounded-xl">
                 Continue
             </button>
         </div>
@@ -152,6 +157,7 @@
             <div id="finalScoreboard" class="flex flex-wrap justify-around mb-8 p-4 bg-gray-100 rounded-lg">
                 <!-- Final scores are populated by JS -->
             </div>
+            <!-- OK: This onclick is fine as it calls a global browser function -->
             <button onclick="window.location.reload()" class="w-full game-button bg-team4 hover:bg-red-600 text-white font-bold py-3 px-4 rounded-xl">
                 Play Again
             </button>
@@ -203,7 +209,6 @@
         // --- Game State (Refactored for dynamic teams) ---
         let gameState = {
             teams: [], // [{name: '...', score: 0, turnsLeft: 3, colorHex: '...'}, ...]
-            // FIX: Use a hex color map directly
             teamColorHex: ['#4F46E5', '#10B981', '#F59E0B', '#EF4444'],
             currentTeamIndex: 0, 
             isTurnActive: false,
@@ -240,9 +245,8 @@
                 const teamName = team.name || `Team ${index + 1}`; 
 
                 const scoreElement = document.createElement('div');
-                // Apply dynamic border color via inline style
                 scoreElement.className = `text-center p-2 rounded-xl border-2 transition-all duration-300 ${isCurrent ? 'shadow-lg scale-105' : 'bg-gray-50'}`;
-                scoreElement.style.borderColor = isCurrent ? team.colorHex : '#F3F4F6'; // Use theme color or light gray
+                scoreElement.style.borderColor = isCurrent ? team.colorHex : '#F3F4F6'; 
 
                 scoreElement.innerHTML = `
                     <p class="text-xs font-semibold uppercase text-gray-500 truncate">${teamName}</p>
@@ -321,19 +325,18 @@
         // --- Team Setup Functions ---
 
         /** Dynamically generates name input fields based on the selected count. */
-        window.generateTeamNameInputs = function() {
+        function generateTeamNameInputs() {
             const count = parseInt(document.getElementById('teamCount').value, 10);
             const container = document.getElementById('teamNameInputs');
             container.innerHTML = '';
 
             for (let i = 0; i < count; i++) {
-                const colorHex = gameState.teamColorHex[i]; // Get hex color
+                const colorHex = gameState.teamColorHex[i]; 
                 const defaultName = `Team ${i + 1}`;
                 
                 const inputWrapper = document.createElement('div');
                 inputWrapper.className = 'flex items-center space-x-2';
                 
-                // FIX: Use inline styles for dynamic colors
                 inputWrapper.innerHTML = `
                     <span class="w-4 h-4 rounded-full" style="background-color: ${colorHex};"></span>
                     <input type="text" id="teamName${i}" placeholder="${defaultName}" value="${defaultName}" class="flex-1 p-3 border-2 rounded-xl focus:ring-accent" style="border-color: ${colorHex};">
@@ -355,7 +358,7 @@
                     name: name,
                     score: 0,
                     turnsLeft: 3, 
-                    colorHex: gameState.teamColorHex[i], // Store hex color
+                    colorHex: gameState.teamColorHex[i], 
                 });
             }
             gameState.currentTeamIndex = 0;
@@ -365,16 +368,6 @@
 
 
         // --- Game Flow Functions ---
-
-        /** Initializes the setup screen on load. */
-        window.initGame = function() {
-            generateTeamNameInputs(); // Show 2 team inputs initially
-            showScreen('teamSetupScreen');
-            const startButton = document.getElementById('setupStartButton');
-            if (startButton) {
-                startButton.addEventListener('click', processSetup);
-            }
-        }
 
         /** Prepares the turn start screen for the next team. */
         function prepareNextTurn() {
@@ -402,14 +395,12 @@
             document.getElementById('timerDisplay').textContent = gameState.timer;
             document.getElementById('timerDisplay').classList.remove('text-red-700'); 
 
-            // FIX: Apply dynamic colors via inline style
             const turnNumber = 4 - currentTeam.turnsLeft;
             const titleElement = document.getElementById('turnStartTitle');
             titleElement.textContent = `${currentTeam.name}'s Turn ${turnNumber} of 3`;
             titleElement.style.color = currentTeam.colorHex;
 
             const turnScreen = document.getElementById('turnStartScreen');
-            // Use hex color with 10% alpha
             turnScreen.style.backgroundColor = `${currentTeam.colorHex}1A`; 
             
             if (prepareCategoryAndWords()) {
@@ -420,4 +411,17 @@
         }
 
         /** Starts the 30-second timer and moves to the game screen. */
-        window.startTimer = function
+        function startTimer() {
+            gameState.isTurnActive = true;
+            showScreen('gameScreen');
+            
+            const currentTeam = gameState.teams[gameState.currentTeamIndex];
+            const correctButton = document.getElementById("correctButton");
+            
+            correctButton.style.backgroundColor = currentTeam.colorHex;
+            correctButton.onmouseover = () => { correctButton.style.opacity = '0.8'; };
+            correctButton.onmouseout = () => { correctButton.style.opacity = '1'; };
+
+            displayNextWord();
+
+            gameState.time
