@@ -1,10 +1,9 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Clue Master: Pass & Play Game</title>
+    <title>Clue Master: 4-Team Pass & Play</title>
     <!-- Load Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Configure Tailwind for custom colors and font -->
@@ -13,9 +12,11 @@
             theme: {
                 extend: {
                     colors: {
-                        'primary': '#4F46E5', // Indigo
-                        'secondary': '#10B981', // Emerald
-                        'accent': '#F59E0B', // Amber
+                        'team1': '#4F46E5', // Indigo (Primary)
+                        'team2': '#10B981', // Emerald (Secondary)
+                        'team3': '#F59E0B', // Amber
+                        'team4': '#EF4444', // Red
+                        'accent': '#6366F1', // Indigo-500 for general use
                         'background': '#F9FAFB', // Light Gray
                     },
                     fontFamily: {
@@ -49,6 +50,10 @@
         .timer-text {
             font-variant-numeric: tabular-nums;
         }
+        .team-color-border-team1 { border-color: #4F46E5; }
+        .team-color-border-team2 { border-color: #10B981; }
+        .team-color-border-team3 { border-color: #F59E0B; }
+        .team-color-border-team4 { border-color: #EF4444; }
     </style>
 </head>
 <body class="font-sans min-h-screen flex flex-col items-center justify-center p-4 bg-gray-100">
@@ -56,38 +61,47 @@
     <!-- Game Container -->
     <div id="game-container" class="w-full max-w-lg bg-white rounded-2xl shadow-2xl p-6 md:p-8">
 
-        <!-- Header: Scoreboard and Timer -->
-        <div id="header" class="flex justify-between items-center mb-6">
-            <div class="text-center">
-                <p class="text-xs font-semibold uppercase text-gray-500">Team 1</p>
-                <p id="score1" class="text-2xl font-black text-primary">0</p>
+        <!-- Header: Dynamic Scoreboard and Timer -->
+        <div id="header" class="mb-6">
+            <!-- Dynamic Scoreboard will be inserted here -->
+            <div id="scoreboard" class="grid grid-cols-2 sm:flex sm:justify-around gap-4 mb-4">
+                <!-- Scores are populated by JS -->
             </div>
-            <div class="text-center">
+            <div class="text-center p-3 bg-gray-100 rounded-xl shadow-inner">
                 <p class="text-xs font-semibold uppercase text-gray-500">Time Left</p>
                 <p id="timerDisplay" class="text-4xl font-extrabold text-red-500 timer-text">30</p>
-            </div>
-            <div class="text-center">
-                <p class="text-xs font-semibold uppercase text-gray-500">Team 2</p>
-                <p id="score2" class="text-2xl font-black text-secondary">0</p>
             </div>
         </div>
 
         <!-- --- Screen Management --- -->
 
-        <!-- 1. Start Screen -->
-        <div id="startScreen" class="screen-container text-center">
-            <h1 class="text-3xl font-extrabold text-gray-800 mb-2">Clue Master</h1>
-            <p class="text-gray-600 mb-8">Pass & Play: 3 rounds per team, 30 seconds per turn.</p>
-            <!-- FIX: Added ID and removed onclick for listener attachment in module script -->
-            <button id="startButton" class="w-full game-button bg-primary hover:bg-indigo-600 text-white font-bold py-3 px-4 rounded-xl">
-                Start Game
+        <!-- 1. Team Setup Screen -->
+        <div id="teamSetupScreen" class="screen-container text-center">
+            <h1 class="text-3xl font-extrabold text-gray-800 mb-2">Setup Game</h1>
+            <p class="text-gray-600 mb-6">Choose your teams and names.</p>
+            
+            <div class="mb-6 text-left">
+                <label for="teamCount" class="block text-sm font-medium text-gray-700 mb-2">Number of Teams:</label>
+                <select id="teamCount" onchange="generateTeamNameInputs()" class="w-full p-3 border border-gray-300 rounded-xl focus:ring-accent focus:border-accent">
+                    <option value="2">2 Teams</option>
+                    <option value="3">3 Teams</option>
+                    <option value="4">4 Teams</option>
+                </select>
+            </div>
+
+            <div id="teamNameInputs" class="space-y-4 mb-8">
+                <!-- Team name inputs are generated here -->
+            </div>
+
+            <button id="setupStartButton" class="w-full game-button bg-primary hover:bg-indigo-600 text-white font-bold py-3 px-4 rounded-xl">
+                Ready to Play
             </button>
         </div>
 
         <!-- 2. Turn Start Screen (Transition) -->
         <div id="turnStartScreen" class="screen-container text-center hidden">
-            <h2 id="turnStartTitle" class="text-3xl font-extrabold text-gray-800 mb-2">Team 1's Turn</h2>
-            <p id="turnStartCategory" class="text-lg font-semibold text-accent mb-6">Category: Pop Culture</p>
+            <h2 id="turnStartTitle" class="text-3xl font-extrabold text-gray-800 mb-2"></h2>
+            <p id="turnStartCategory" class="text-lg font-semibold text-accent mb-6"></p>
             <p class="text-gray-600 mb-8">Pass the device to the guesser. Get ready for 30 seconds!</p>
             <button onclick="startTimer()" class="w-full game-button bg-secondary hover:bg-emerald-600 text-white font-bold py-3 px-4 rounded-xl">
                 Start Turn
@@ -107,16 +121,16 @@
             </div>
 
             <div class="flex space-x-3 mb-6">
-                <button id="hintButton" onclick="showHint()" class="flex-1 game-button bg-accent hover:bg-amber-600 text-white font-bold py-3 px-2 rounded-xl text-sm md:text-base">
+                <button id="hintButton" onclick="showHint()" class="flex-1 game-button bg-team3 hover:bg-amber-600 text-white font-bold py-3 px-2 rounded-xl text-sm md:text-base">
                     Hint (<span id="hintsRemainingDisplay">2</span>)
                 </button>
             </div>
 
             <div class="flex space-x-3">
-                <button onclick="handleAction('skip')" class="flex-1 game-button bg-red-500 hover:bg-red-600 text-white font-bold py-4 px-2 rounded-xl text-lg">
+                <button onclick="handleAction('skip')" class="flex-1 game-button bg-team4 hover:bg-red-600 text-white font-bold py-4 px-2 rounded-xl text-lg">
                     Skip (<span id="skipScoreChange">0</span>)
                 </button>
-                <button onclick="handleAction('correct')" class="flex-1 game-button bg-primary hover:bg-indigo-600 text-white font-bold py-4 px-2 rounded-xl text-lg">
+                <button id="correctButton" onclick="handleAction('correct')" class="flex-1 game-button bg-primary hover:bg-indigo-600 text-white font-bold py-4 px-2 rounded-xl text-lg">
                     Correct (+1)
                 </button>
             </div>
@@ -126,10 +140,10 @@
         <!-- 4. Turn End/Results Screen -->
         <div id="turnEndScreen" class="screen-container text-center hidden">
             <h2 class="text-3xl font-extrabold text-gray-800 mb-4">Turn Over!</h2>
-            <p id="turnSummary" class="text-lg text-gray-600 mb-6">Team 1 scored 5 points this turn.</p>
-            <p id="nextTurnInfo" class="text-sm font-semibold text-gray-500 mb-8">Team 2, get ready for your turn.</p>
+            <p id="turnSummary" class="text-lg text-gray-600 mb-6"></p>
+            <p id="nextTurnInfo" class="text-sm font-semibold text-gray-500 mb-8"></p>
 
-            <button onclick="nextTurn()" class="w-full game-button bg-primary hover:bg-indigo-600 text-white font-bold py-3 px-4 rounded-xl">
+            <button onclick="nextTurn()" class="w-full game-button bg-accent hover:bg-indigo-600 text-white font-bold py-3 px-4 rounded-xl">
                 Continue
             </button>
         </div>
@@ -137,10 +151,9 @@
         <!-- 5. Game Over Screen -->
         <div id="gameOverScreen" class="screen-container text-center hidden">
             <h2 class="text-4xl font-extrabold text-gray-800 mb-4">Game Over!</h2>
-            <p id="winnerMessage" class="text-2xl font-semibold text-secondary mb-6">The winner is Team 1!</p>
-            <div class="flex justify-around mb-8 p-4 bg-gray-100 rounded-lg">
-                <p class="text-lg font-medium text-primary">Team 1: <span id="finalScore1" class="font-bold">0</span></p>
-                <p class="text-lg font-medium text-secondary">Team 2: <span id="finalScore2" class="font-bold">0</span></p>
+            <p id="winnerMessage" class="text-2xl font-semibold text-secondary mb-6"></p>
+            <div id="finalScoreboard" class="flex flex-wrap justify-around mb-8 p-4 bg-gray-100 rounded-lg">
+                <!-- Final scores are populated by JS -->
             </div>
             <button onclick="window.location.reload()" class="w-full game-button bg-red-500 hover:bg-red-600 text-white font-bold py-3 px-4 rounded-xl">
                 Play Again
@@ -157,12 +170,11 @@
 
     <!-- JavaScript Game Logic -->
     <script type="module">
-        // --- Firebase/Firestore Setup (Required Boilerplate - not used for local game state) ---
+        // --- Firebase/Firestore Setup (Boilerplate) ---
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // Global variables provided by the environment
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
         const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
         
@@ -175,15 +187,10 @@
                 const app = initializeApp(firebaseConfig);
                 db = getFirestore(app);
                 auth = getAuth(app);
-                
-                // Auth flow
                 onAuthStateChanged(auth, (user) => {
-                    if (user) {
-                        userId = user.uid;
-                    } else {
-                        // Sign in anonymously if not already signed in
+                    if (user) { userId = user.uid; } else {
                         if (typeof __initial_auth_token !== 'undefined') {
-                            signInWithCustomToken(auth, __initial_auth_token).catch(e => console.error("Custom Auth Token Sign In Failed:", e));
+                            signInWithCustomToken(auth, __initial_auth_token).catch(e => console.error("Custom Auth Failed:", e));
                         } else {
                             signInAnonymously(auth).catch(e => console.error("Anonymous Sign In Failed:", e));
                         }
@@ -196,19 +203,17 @@
         }
         // --- End of Firebase/Firestore Setup ---
 
-        // --- Game State (Local variables for pass-and-play simplicity) ---
+        // --- Game State (Refactored for dynamic teams) ---
         let gameState = {
-            team1Score: 0,
-            team2Score: 0,
-            currentTeam: 1, // 1 or 2
-            team1TurnsLeft: 3,
-            team2TurnsLeft: 3,
+            teams: [], // [{name: '...', score: 0, turnsLeft: 3, colorClass: '...'}, ...]
+            teamColorClasses: ['team1', 'team2', 'team3', 'team4'],
+            currentTeamIndex: 0, 
             isTurnActive: false,
             timer: 30,
             currentCategory: null,
-            currentWords: [], // List of words for the current category
-            currentWordIndex: -1, // Index of the currently displayed word in currentWords
-            currentWord: null, // The word object {word: '...', hint: '...'}
+            currentWords: [],
+            currentWordIndex: -1,
+            currentWord: null,
             skippedWordsInTurn: 0,
             hintsUsedInTurn: 0,
             timerInterval: null,
@@ -217,53 +222,63 @@
 
         // --- Utility Functions ---
 
-        /**
-         * Hides all game screens and shows the specified one.
-         * @param {string} screenId - The ID of the screen element to show.
-         */
+        /** Hides all game screens and shows the specified one. */
         function showScreen(screenId) {
-            ['startScreen', 'turnStartScreen', 'gameScreen', 'turnEndScreen', 'gameOverScreen'].forEach(id => {
+            ['teamSetupScreen', 'turnStartScreen', 'gameScreen', 'turnEndScreen', 'gameOverScreen'].forEach(id => {
                 const screen = document.getElementById(id);
-                if (screen) {
-                    screen.classList.add('hidden');
-                }
+                if (screen) screen.classList.add('hidden');
             });
             const targetScreen = document.getElementById(screenId);
-            if (targetScreen) {
-                targetScreen.classList.remove('hidden');
-            }
+            if (targetScreen) targetScreen.classList.remove('hidden');
         }
 
-        /**
-         * Updates the score displays on the header.
-         */
+        /** Updates the dynamic scoreboard in the header. */
         function updateScoreDisplay() {
-            document.getElementById('score1').textContent = gameState.team1Score;
-            document.getElementById('score2').textContent = gameState.team2Score;
-        }
+            const scoreboard = document.getElementById('scoreboard');
+            scoreboard.innerHTML = ''; // Clear existing scores
 
-        /**
-         * Randomly selects an unused category, then shuffles its words.
-         */
+            gameState.teams.forEach((team, index) => {
+                const isCurrent = index === gameState.currentTeamIndex && gameState.isTurnActive;
+                
+                const scoreElement = document.createElement('div');
+                scoreElement.className = `text-center p-2 rounded-xl border-2 transition-all duration-300 ${isCurrent ? 'shadow-lg scale-105' : 'bg-gray-50 border-gray-100'} team-color-border-${team.colorClass}`;
+                
+                // Use a default name if not set
+                const teamName = team.name || `Team ${index + 1}`; 
+
+                scoreElement.innerHTML = `
+                    <p class="text-xs font-semibold uppercase text-gray-500 truncate">${teamName}</p>
+                    <p class="text-xl font-black text-${team.colorClass}">${team.score}</p>
+                    <p class="text-xs text-gray-400">Turns Left: ${team.turnsLeft}</p>
+                `;
+                scoreboard.appendChild(scoreElement);
+            });
+        }
+        
+        /** Shows an error message in the dedicated box. */
+        function displayError(message) {
+            document.getElementById('errorBox').classList.remove('hidden');
+            document.getElementById('errorMessage').textContent = message;
+        }
+        
+        /** Randomly selects a category and shuffles its words. */
         function prepareCategoryAndWords() {
-            // FIX: Check for wordsByCategory and display error message instead of alert
             if (typeof wordsByCategory === 'undefined' || Object.keys(wordsByCategory).length === 0) {
-                console.error("words.js not loaded or is empty.");
-                document.getElementById('errorBox').classList.remove('hidden');
-                document.getElementById('errorMessage').textContent = "Word data (words.js) is missing or empty. Please ensure the file is in the same directory and correctly structured.";
-                showScreen('startScreen');
+                displayError("Word data (words.js) is missing or empty. Please ensure the file is in the same directory and correctly structured.");
                 return false;
             }
             document.getElementById('errorBox').classList.add('hidden');
 
-
             const categories = Object.keys(wordsByCategory);
+            if (categories.length === 0) {
+                displayError("words.js is loaded but contains no categories.");
+                return false;
+            }
             
-            // For simplicity, just pick a random category and shuffle its words
             const randomCategory = categories[Math.floor(Math.random() * categories.length)];
             
-            // Shallow copy and shuffle the words for this turn
             let words = [...wordsByCategory[randomCategory]];
+            // Fisher-Yates shuffle
             for (let i = words.length - 1; i > 0; i--) {
                 const j = Math.floor(Math.random() * (i + 1));
                 [words[i], words[j]] = [words[j], words[i]];
@@ -271,17 +286,14 @@
 
             gameState.currentCategory = randomCategory;
             gameState.currentWords = words;
-            gameState.currentWordIndex = -1; // Reset index
+            gameState.currentWordIndex = -1;
             return true;
         }
 
-        /**
-         * Displays the next word from the current list.
-         */
+        /** Displays the next word. */
         function displayNextWord() {
             // Check if we ran out of words for the turn
             if (gameState.currentWordIndex >= gameState.currentWords.length - 1) {
-                // If the word list is exhausted, just end the turn gracefully
                 clearInterval(gameState.timerInterval);
                 gameState.timer = 0;
                 endTurn();
@@ -291,7 +303,6 @@
             gameState.currentWordIndex++;
             gameState.currentWord = gameState.currentWords[gameState.currentWordIndex];
 
-            // Update UI elements
             document.getElementById('categoryLabel').textContent = `Category: ${gameState.currentCategory}`;
             document.getElementById('currentWordDisplay').textContent = gameState.currentWord.word;
             document.getElementById('hintText').textContent = gameState.currentWord.hint;
@@ -299,245 +310,108 @@
             document.getElementById('hintsRemainingDisplay').textContent = 2 - gameState.hintsUsedInTurn;
             document.getElementById('hintButton').disabled = (gameState.hintsUsedInTurn >= 2);
             document.getElementById('hintButton').classList.toggle('opacity-50', gameState.hintsUsedInTurn >= 2);
-            document.getElementById('hintBox').querySelector('p:last-child').textContent = `Hint used! (${2 - gameState.hintsUsedInTurn} remaining)`;
+            document.getElementById('hintsRemaining').textContent = 2 - gameState.hintsUsedInTurn;
 
             updateSkipUI();
         }
 
-        /**
-         * Updates the score change text for the Skip button.
-         */
+        /** Updates the score change text for the Skip button. */
         function updateSkipUI() {
             const scoreChange = gameState.skippedWordsInTurn === 0 ? 0 : -1;
             document.getElementById('skipScoreChange').textContent = scoreChange;
             document.getElementById('skipCounter').textContent = `Skips used this turn: ${gameState.skippedWordsInTurn}`;
+        }
+        
+        // --- Team Setup Functions ---
 
-            // Correct button text if score is negative (after first skip)
-            if (scoreChange < 0) {
-                document.getElementById('skipScoreChange').classList.remove('text-primary');
-                document.getElementById('skipScoreChange').classList.add('text-red-500');
-            } else {
-                document.getElementById('skipScoreChange').classList.remove('text-red-500');
-                // Ensure correct color for the skip button text which is nested in the red skip button
-                document.getElementById('skipScoreChange').classList.add('text-white'); 
+        /** Dynamically generates name input fields based on the selected count. */
+        window.generateTeamNameInputs = function() {
+            const count = parseInt(document.getElementById('teamCount').value, 10);
+            const container = document.getElementById('teamNameInputs');
+            container.innerHTML = '';
+
+            for (let i = 0; i < count; i++) {
+                const color = gameState.teamColorClasses[i];
+                const defaultName = `Team ${i + 1}`;
+                
+                const inputWrapper = document.createElement('div');
+                inputWrapper.className = 'flex items-center space-x-2';
+                inputWrapper.innerHTML = `
+                    <span class="w-4 h-4 rounded-full bg-${color}"></span>
+                    <input type="text" id="teamName${i}" placeholder="${defaultName}" value="${defaultName}" class="flex-1 p-3 border-2 border-${color} rounded-xl focus:ring-accent focus:border-accent">
+                `;
+                container.appendChild(inputWrapper);
             }
         }
+        
+        /** Captures setup data and initializes the game state. */
+        function processSetup() {
+            const count = parseInt(document.getElementById('teamCount').value, 10);
+            gameState.teams = [];
 
-        // --- Game Flow Functions ---
-
-        /**
-         * Starts the game from the initial screen.
-         */
-        window.startGame = function() {
-            gameState.team1Score = 0;
-            gameState.team2Score = 0;
-            gameState.currentTeam = 1;
-            gameState.team1TurnsLeft = 3;
-            gameState.team2TurnsLeft = 3;
-            updateScoreDisplay();
+            for (let i = 0; i < count; i++) {
+                const inputElement = document.getElementById(`teamName${i}`);
+                const name = inputElement.value.trim() || inputElement.placeholder; // Use placeholder if name is empty
+                
+                gameState.teams.push({
+                    name: name,
+                    score: 0,
+                    turnsLeft: 3, // Each team starts with 3 turns
+                    colorClass: gameState.teamColorClasses[i],
+                });
+            }
+            gameState.currentTeamIndex = 0;
+            updateScoreDisplay(); // Initialize scoreboard
             prepareNextTurn();
         }
 
-        /**
-         * Prepares the turn start screen for the next team.
-         */
+
+        // --- Game Flow Functions ---
+
+        /** Initializes the setup screen on load. */
+        window.initGame = function() {
+            generateTeamNameInputs(); // Show 2 team inputs initially
+            showScreen('teamSetupScreen');
+            document.getElementById('setupStartButton').addEventListener('click', processSetup);
+        }
+
+        /** Prepares the turn start screen for the next team. */
         function prepareNextTurn() {
             if (checkGameOver()) {
                 showGameOver();
                 return;
             }
+            
+            let currentTeam = gameState.teams[gameState.currentTeamIndex];
 
-            const teamTurnsLeft = gameState.currentTeam === 1 ? gameState.team1TurnsLeft : gameState.team2TurnsLeft;
-            const teamColor = gameState.currentTeam === 1 ? 'text-primary' : 'text-secondary';
-            const teamName = `Team ${gameState.currentTeam}`;
-            
-            if (teamTurnsLeft === 0) {
-                // Switch team if current team is out of turns
-                gameState.currentTeam = gameState.currentTeam === 1 ? 2 : 1;
-                prepareNextTurn();
-                return;
+            // Cycle through teams until we find one with turns left
+            while (currentTeam.turnsLeft === 0) {
+                gameState.currentTeamIndex = (gameState.currentTeamIndex + 1) % gameState.teams.length;
+                currentTeam = gameState.teams[gameState.currentTeamIndex];
+
+                // If we cycled back to the start and this team still has 0 turns, game is over
+                if (gameState.currentTeamIndex === 0 && currentTeam.turnsLeft === 0) {
+                    // Check again just in case, this should already be caught by checkGameOver
+                    if (checkGameOver()) { showGameOver(); return; } 
+                }
             }
-            
+
             // Reset turn specific state
             gameState.timer = 30;
             gameState.skippedWordsInTurn = 0;
             gameState.hintsUsedInTurn = 0;
             gameState.currentTurnPoints = 0;
             document.getElementById('timerDisplay').textContent = gameState.timer;
+            document.getElementById('timerDisplay').classList.remove('text-red-700'); // Reset timer color
 
             // Prepare content for the Turn Start Screen
-            document.getElementById('turnStartTitle').textContent = `${teamName}'s Turn ${4 - teamTurnsLeft} of 3`;
+            const teamColor = `text-${currentTeam.colorClass}`;
+            const turnNumber = 4 - currentTeam.turnsLeft;
+
+            document.getElementById('turnStartTitle').textContent = `${currentTeam.name}'s Turn ${turnNumber} of 3`;
             document.getElementById('turnStartTitle').className = `text-3xl font-extrabold mb-2 ${teamColor}`;
-            document.getElementById('turnStartScreen').classList.remove('bg-primary/10', 'bg-secondary/10');
-            document.getElementById('turnStartScreen').classList.add(gameState.currentTeam === 1 ? 'bg-primary/10' : 'bg-secondary/10');
+            document.getElementById('turnStartScreen').style.backgroundColor = `var(--tw-colors-${currentTeam.colorClass}-100)`;
             
             // Pick a category for the turn
             if (prepareCategoryAndWords()) {
-                document.getElementById('turnStartCategory').textContent = `Category: ${gameState.currentCategory}`;
-                showScreen('turnStartScreen');
-            }
-        }
-
-        /**
-         * Starts the 30-second timer and moves to the game screen.
-         */
-        window.startTimer = function() {
-            gameState.isTurnActive = true;
-            showScreen('gameScreen');
-            
-            // Set up button colors based on current team
-            const correctButton = document.querySelector("#gameScreen button:last-child");
-            correctButton.classList.remove('bg-primary', 'bg-secondary', 'hover:bg-indigo-600', 'hover:bg-emerald-600');
-            correctButton.classList.add(gameState.currentTeam === 1 ? 'bg-primary' : 'bg-secondary');
-            correctButton.classList.add(gameState.currentTeam === 1 ? 'hover:bg-indigo-600' : 'hover:bg-emerald-600');
-
-            displayNextWord();
-
-            gameState.timerInterval = setInterval(() => {
-                gameState.timer--;
-                document.getElementById('timerDisplay').textContent = gameState.timer;
-                
-                if (gameState.timer <= 10) {
-                     document.getElementById('timerDisplay').classList.remove('text-red-500');
-                     document.getElementById('timerDisplay').classList.add('text-red-700');
-                } else {
-                     document.getElementById('timerDisplay').classList.remove('text-red-700');
-                     document.getElementById('timerDisplay').classList.add('text-red-500');
-                }
-
-                if (gameState.timer <= 0) {
-                    endTurn();
-                }
-            }, 1000);
-        }
-
-        /**
-         * Handles Correct or Skip actions.
-         * @param {string} action - 'correct' or 'skip'.
-         */
-        window.handleAction = function(action) {
-            if (!gameState.isTurnActive || gameState.timer <= 0) return;
-
-            if (action === 'correct') {
-                gameState.currentTurnPoints += 1;
-            } else if (action === 'skip') {
-                if (gameState.skippedWordsInTurn === 0) {
-                    // First skip: 0 points change
-                } else {
-                    // Subsequent skips: -1 point change
-                    gameState.currentTurnPoints -= 1;
-                }
-                gameState.skippedWordsInTurn++;
-                updateSkipUI();
-            }
-
-            displayNextWord();
-        }
-
-        /**
-         * Shows the hint for the current word.
-         */
-        window.showHint = function() {
-            if (!gameState.isTurnActive || gameState.hintsUsedInTurn >= 2) return;
-            
-            gameState.hintsUsedInTurn++;
-            document.getElementById('hintBox').classList.remove('hidden');
-            document.getElementById('hintsRemainingDisplay').textContent = 2 - gameState.hintsUsedInTurn;
-            
-            if (gameState.hintsUsedInTurn >= 2) {
-                document.getElementById('hintButton').disabled = true;
-                document.getElementById('hintButton').classList.add('opacity-50');
-            }
-        }
-
-        /**
-         * Ends the current turn, calculates score, and moves to the end screen.
-         */
-        function endTurn() {
-            if (!gameState.isTurnActive) return;
-
-            clearInterval(gameState.timerInterval);
-            gameState.isTurnActive = false;
-
-            // Apply turn points to the current team's total score
-            if (gameState.currentTeam === 1) {
-                gameState.team1Score += gameState.currentTurnPoints;
-                gameState.team1TurnsLeft--;
-            } else {
-                gameState.team2Score += gameState.currentTurnPoints;
-                gameState.team2TurnsLeft--;
-            }
-            
-            updateScoreDisplay();
-
-            // Prepare the Turn End Screen
-            const teamName = `Team ${gameState.currentTeam}`;
-            const nextTeamName = `Team ${gameState.currentTeam === 1 ? 2 : 1}`;
-            
-            document.getElementById('turnSummary').textContent = `${teamName} scored ${gameState.currentTurnPoints} point${gameState.currentTurnPoints !== 1 ? 's' : ''} this turn!`;
-            
-            if (checkGameOver()) {
-                document.getElementById('nextTurnInfo').textContent = "That was the last turn! Let's see the final scores.";
-            } else {
-                document.getElementById('nextTurnInfo').textContent = `${nextTeamName}, get ready for your turn.`;
-            }
-
-            // Update current team to the next team
-            gameState.currentTeam = gameState.currentTeam === 1 ? 2 : 1;
-            
-            showScreen('turnEndScreen');
-        }
-
-        /**
-         * Moves to the next team's turn setup.
-         */
-        window.nextTurn = function() {
-            prepareNextTurn();
-        }
-
-        /**
-         * Checks if the game is completely over.
-         */
-        function checkGameOver() {
-            return gameState.team1TurnsLeft <= 0 && gameState.team2TurnsLeft <= 0;
-        }
-
-        /**
-         * Shows the final game over screen with the winner.
-         */
-        function showGameOver() {
-            const score1 = gameState.team1Score;
-            const score2 = gameState.team2Score;
-            
-            document.getElementById('finalScore1').textContent = score1;
-            document.getElementById('finalScore2').textContent = score2;
-
-            let winnerMsg;
-            if (score1 > score2) {
-                winnerMsg = "Team 1 Wins!";
-            } else if (score2 > score1) {
-                winnerMsg = "Team 2 Wins!";
-            } else {
-                winnerMsg = "It's a Tie!";
-            }
-            
-            document.getElementById('winnerMessage').textContent = winnerMsg;
-            showScreen('gameOverScreen');
-        }
-
-        // --- Initialization ---
-        window.onload = function() {
-            // Initial score and timer display
-            updateScoreDisplay();
-            document.getElementById('timerDisplay').textContent = gameState.timer;
-
-            // FIX: Use addEventListener for the start button to ensure module-scope visibility
-            const startButton = document.getElementById('startButton');
-            if (startButton) {
-                startButton.addEventListener('click', startGame);
-            }
-        }
-    </script>
-</body>
-</html>
-
+                document.getElementById('turnStar
