@@ -50,6 +50,7 @@
         .timer-text {
             font-variant-numeric: tabular-nums;
         }
+        /* Explicitly define border colors for the dynamic scoreboard */
         .team-color-border-team1 { border-color: #4F46E5; }
         .team-color-border-team2 { border-color: #10B981; }
         .team-color-border-team3 { border-color: #F59E0B; }
@@ -58,12 +59,20 @@
 </head>
 <body class="font-sans min-h-screen flex flex-col items-center justify-center p-4 bg-gray-100">
 
+    <!-- Tailwind Fix: Explicitly include dynamic classes so the JIT compiler generates them on load -->
+    <div class="hidden">
+        <span class="bg-team1 border-team1 text-team1 bg-team1/10"></span>
+        <span class="bg-team2 border-team2 text-team2 bg-team2/10"></span>
+        <span class="bg-team3 border-team3 text-team3 bg-team3/10"></span>
+        <span class="bg-team4 border-team4 text-team4 bg-team4/10"></span>
+    </div>
+    <!-- End of Tailwind Fix -->
+
     <!-- Game Container -->
     <div id="game-container" class="w-full max-w-lg bg-white rounded-2xl shadow-2xl p-6 md:p-8">
 
         <!-- Header: Dynamic Scoreboard and Timer -->
         <div id="header" class="mb-6">
-            <!-- Dynamic Scoreboard will be inserted here -->
             <div id="scoreboard" class="grid grid-cols-2 sm:flex sm:justify-around gap-4 mb-4">
                 <!-- Scores are populated by JS -->
             </div>
@@ -99,9 +108,9 @@
         </div>
 
         <!-- 2. Turn Start Screen (Transition) -->
-        <div id="turnStartScreen" class="screen-container text-center hidden">
+        <div id="turnStartScreen" class="screen-container text-center hidden p-8 rounded-xl">
             <h2 id="turnStartTitle" class="text-3xl font-extrabold text-gray-800 mb-2"></h2>
-            <p id="turnStartCategory" class="text-lg font-semibold text-accent mb-6"></p>
+            <p id="turnStartCategory" class="text-lg font-semibold text-gray-800 mb-6"></p>
             <p class="text-gray-600 mb-8">Pass the device to the guesser. Get ready for 30 seconds!</p>
             <button onclick="startTimer()" class="w-full game-button bg-secondary hover:bg-emerald-600 text-white font-bold py-3 px-4 rounded-xl">
                 Start Turn
@@ -243,7 +252,6 @@
                 const scoreElement = document.createElement('div');
                 scoreElement.className = `text-center p-2 rounded-xl border-2 transition-all duration-300 ${isCurrent ? 'shadow-lg scale-105' : 'bg-gray-50 border-gray-100'} team-color-border-${team.colorClass}`;
                 
-                // Use a default name if not set
                 const teamName = team.name || `Team ${index + 1}`; 
 
                 scoreElement.innerHTML = `
@@ -263,6 +271,7 @@
         
         /** Randomly selects a category and shuffles its words. */
         function prepareCategoryAndWords() {
+            // Check for wordsByCategory which is loaded from words.js
             if (typeof wordsByCategory === 'undefined' || Object.keys(wordsByCategory).length === 0) {
                 displayError("Word data (words.js) is missing or empty. Please ensure the file is in the same directory and correctly structured.");
                 return false;
@@ -336,6 +345,7 @@
                 
                 const inputWrapper = document.createElement('div');
                 inputWrapper.className = 'flex items-center space-x-2';
+                // Note: The classes bg-${color} and border-${color} are now statically included in the hidden div above.
                 inputWrapper.innerHTML = `
                     <span class="w-4 h-4 rounded-full bg-${color}"></span>
                     <input type="text" id="teamName${i}" placeholder="${defaultName}" value="${defaultName}" class="flex-1 p-3 border-2 border-${color} rounded-xl focus:ring-accent focus:border-accent">
@@ -351,17 +361,17 @@
 
             for (let i = 0; i < count; i++) {
                 const inputElement = document.getElementById(`teamName${i}`);
-                const name = inputElement.value.trim() || inputElement.placeholder; // Use placeholder if name is empty
+                const name = inputElement.value.trim() || inputElement.placeholder;
                 
                 gameState.teams.push({
                     name: name,
                     score: 0,
-                    turnsLeft: 3, // Each team starts with 3 turns
+                    turnsLeft: 3, 
                     colorClass: gameState.teamColorClasses[i],
                 });
             }
             gameState.currentTeamIndex = 0;
-            updateScoreDisplay(); // Initialize scoreboard
+            updateScoreDisplay(); 
             prepareNextTurn();
         }
 
@@ -372,7 +382,11 @@
         window.initGame = function() {
             generateTeamNameInputs(); // Show 2 team inputs initially
             showScreen('teamSetupScreen');
-            document.getElementById('setupStartButton').addEventListener('click', processSetup);
+            // Attach listener to start button
+            const startButton = document.getElementById('setupStartButton');
+            if (startButton) {
+                startButton.addEventListener('click', processSetup);
+            }
         }
 
         /** Prepares the turn start screen for the next team. */
@@ -385,15 +399,16 @@
             let currentTeam = gameState.teams[gameState.currentTeamIndex];
 
             // Cycle through teams until we find one with turns left
-            while (currentTeam.turnsLeft === 0) {
+            let cycleCount = 0;
+            while (currentTeam.turnsLeft === 0 && cycleCount < gameState.teams.length) {
                 gameState.currentTeamIndex = (gameState.currentTeamIndex + 1) % gameState.teams.length;
                 currentTeam = gameState.teams[gameState.currentTeamIndex];
-
-                // If we cycled back to the start and this team still has 0 turns, game is over
-                if (gameState.currentTeamIndex === 0 && currentTeam.turnsLeft === 0) {
-                    // Check again just in case, this should already be caught by checkGameOver
-                    if (checkGameOver()) { showGameOver(); return; } 
-                }
+                cycleCount++;
+            }
+            
+            // If all teams have 0 turns left, end the game (this is a fallback check)
+            if (cycleCount >= gameState.teams.length) {
+                if (checkGameOver()) { showGameOver(); return; }
             }
 
             // Reset turn specific state
@@ -402,16 +417,6 @@
             gameState.hintsUsedInTurn = 0;
             gameState.currentTurnPoints = 0;
             document.getElementById('timerDisplay').textContent = gameState.timer;
-            document.getElementById('timerDisplay').classList.remove('text-red-700'); // Reset timer color
+            document.getElementById('timerDisplay').classList.remove('text-red-700'); 
 
-            // Prepare content for the Turn Start Screen
-            const teamColor = `text-${currentTeam.colorClass}`;
-            const turnNumber = 4 - currentTeam.turnsLeft;
-
-            document.getElementById('turnStartTitle').textContent = `${currentTeam.name}'s Turn ${turnNumber} of 3`;
-            document.getElementById('turnStartTitle').className = `text-3xl font-extrabold mb-2 ${teamColor}`;
-            document.getElementById('turnStartScreen').style.backgroundColor = `var(--tw-colors-${currentTeam.colorClass}-100)`;
-            
-            // Pick a category for the turn
-            if (prepareCategoryAndWords()) {
-                document.getElementById('turnStar
+            // Prepare content for the Turn 
