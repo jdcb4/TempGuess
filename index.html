@@ -424,4 +424,156 @@
 
             displayNextWord();
 
-            gameState.time
+            gameState.timerInterval = setInterval(() => {
+                gameState.timer--;
+                document.getElementById('timerDisplay').textContent = gameState.timer;
+                
+                // Change timer color when below 10 seconds
+                if (gameState.timer <= 10) {
+                    document.getElementById('timerDisplay').classList.add('text-red-700');
+                }
+
+                if (gameState.timer <= 0) {
+                    clearInterval(gameState.timerInterval);
+                    endTurn();
+                }
+            }, 1000);
+            
+            updateScoreDisplay();
+        }
+
+        /** Ends the current turn and shows the results. */
+        function endTurn() {
+            gameState.isTurnActive = false;
+            clearInterval(gameState.timerInterval);
+            
+            const currentTeam = gameState.teams[gameState.currentTeamIndex];
+            
+            // Apply score penalties for skips
+            if (gameState.skippedWordsInTurn > 0) {
+                currentTeam.score = Math.max(0, currentTeam.score - 1);
+            }
+            
+            currentTeam.turnsLeft--;
+            
+            // Show turn summary
+            document.getElementById('turnSummary').textContent = 
+                `${currentTeam.name} scored ${gameState.currentTurnPoints} point${gameState.currentTurnPoints === 1 ? '' : 's'}!`;
+            
+            // Determine next team
+            gameState.currentTeamIndex = (gameState.currentTeamIndex + 1) % gameState.teams.length;
+            
+            const nextTeam = gameState.teams[gameState.currentTeamIndex];
+            document.getElementById('nextTurnInfo').textContent = 
+                `Next up: ${nextTeam.name}`;
+            
+            updateScoreDisplay();
+            showScreen('turnEndScreen');
+        }
+
+        /** Handles the "Correct" button click. */
+        function handleCorrectAnswer() {
+            if (!gameState.isTurnActive) return;
+            
+            const currentTeam = gameState.teams[gameState.currentTeamIndex];
+            currentTeam.score++;
+            gameState.currentTurnPoints++;
+            updateScoreDisplay();
+            displayNextWord();
+        }
+
+        /** Handles the "Skip" button click. */
+        function handleSkip() {
+            if (!gameState.isTurnActive) return;
+            
+            gameState.skippedWordsInTurn++;
+            updateSkipUI();
+            displayNextWord();
+        }
+
+        /** Handles the "Hint" button click. */
+        function handleHint() {
+            if (!gameState.isTurnActive || gameState.hintsUsedInTurn >= 2) return;
+            
+            gameState.hintsUsedInTurn++;
+            document.getElementById('hintBox').classList.remove('hidden');
+            document.getElementById('hintsRemainingDisplay').textContent = 2 - gameState.hintsUsedInTurn;
+            document.getElementById('hintButton').disabled = (gameState.hintsUsedInTurn >= 2);
+            document.getElementById('hintButton').classList.toggle('opacity-50', gameState.hintsUsedInTurn >= 2);
+            document.getElementById('hintsRemaining').textContent = 2 - gameState.hintsUsedInTurn;
+        }
+
+        /** Checks if the game is over (all teams have no turns left). */
+        function checkGameOver() {
+            return gameState.teams.every(team => team.turnsLeft === 0);
+        }
+
+        /** Displays the game over screen with winners. */
+        function showGameOver() {
+            const maxScore = Math.max(...gameState.teams.map(t => t.score));
+            const winners = gameState.teams.filter(t => t.score === maxScore);
+            
+            let winnerText = '';
+            if (winners.length === 1) {
+                winnerText = `${winners[0].name} wins!`;
+            } else {
+                const winnerNames = winners.map(t => t.name).join(' and ');
+                winnerText = `It's a tie between ${winnerNames}!`;
+            }
+            
+            document.getElementById('winnerMessage').textContent = winnerText;
+            
+            // Build final scoreboard
+            const finalScoreboard = document.getElementById('finalScoreboard');
+            finalScoreboard.innerHTML = '';
+            
+            // Sort teams by score (descending)
+            const sortedTeams = [...gameState.teams].sort((a, b) => b.score - a.score);
+            
+            sortedTeams.forEach(team => {
+                const teamElement = document.createElement('div');
+                teamElement.className = 'text-center m-2';
+                teamElement.innerHTML = `
+                    <p class="font-bold text-lg" style="color: ${team.colorHex};">${team.name}</p>
+                    <p class="text-2xl font-black" style="color: ${team.colorHex};">${team.score}</p>
+                `;
+                finalScoreboard.appendChild(teamElement);
+            });
+            
+            showScreen('gameOverScreen');
+        }
+
+        // --- Initialize Game ---
+        
+        /** Initialize the game when the page loads. */
+        function initGame() {
+            // Generate initial team name inputs (for 2 teams by default)
+            generateTeamNameInputs();
+            
+            // Attach event listeners to buttons
+            
+            // Team setup screen
+            document.getElementById('teamCount').addEventListener('change', generateTeamNameInputs);
+            document.getElementById('setupStartButton').addEventListener('click', processSetup);
+            
+            // Turn start screen
+            document.getElementById('turnStartButton').addEventListener('click', startTimer);
+            
+            // Game screen buttons
+            document.getElementById('correctButton').addEventListener('click', handleCorrectAnswer);
+            document.getElementById('skipButton').addEventListener('click', handleSkip);
+            document.getElementById('hintButton').addEventListener('click', handleHint);
+            
+            // Turn end screen
+            document.getElementById('nextTurnButton').addEventListener('click', prepareNextTurn);
+            
+            // Show the team setup screen first
+            showScreen('teamSetupScreen');
+        }
+
+        // Start the game when the page loads
+        window.addEventListener('DOMContentLoaded', initGame);
+        
+    </script>
+</body>
+</html>
